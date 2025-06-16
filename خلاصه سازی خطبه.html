@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ابزار تولید خلاصه خطبه‌های نماز جمعه</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">ابزار هوشمند خلاصه‌سازی خطبه‌های نماز جمعه</h1>
+            <p class="text-gray-600 mt-2">متن خطبه‌ها را وارد کنید تا خلاصه‌ای حرفه‌ای و قالب‌بندی شده تحویل بگیرید.</p>
+        </header>
+
+        <main class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label for="khutbah1" class="block mb-2 font-bold text-gray-700">متن خطبه اول (مذهبی)</label>
+                    <textarea id="khutbah1" rows="10" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" placeholder="متن کامل خطبه اول را اینجا وارد کنید..."></textarea>
+                </div>
+                <div>
+                    <label for="khutbah2" class="block mb-2 font-bold text-gray-700">متن خطبه دوم (سیاسی)</label>
+                    <textarea id="khutbah2" rows="10" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow" placeholder="متن کامل خطبه دوم را اینجا وارد کنید..."></textarea>
+                </div>
+            </div>
+
+            <div class="text-center mb-8">
+                <button id="generateBtn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all transform hover:scale-105 shadow-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline-block ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    تولید خلاصه
+                </button>
+            </div>
+            
+            <div id="loading" class="hidden flex-col items-center justify-center my-6">
+                <div class="loader"></div>
+                <p class="mt-4 text-gray-600">در حال پردازش و خلاصه‌سازی... لطفاً چند لحظه صبر کنید.</p>
+            </div>
+
+            <div id="resultContainer" class="hidden">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h2 class="text-2xl font-bold text-gray-800">خروجی نهایی</h2>
+                    <button id="copyBtn" class="bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        کپی کردن متن
+                    </button>
+                </div>
+                <div id="output" class="bg-gray-50 p-6 rounded-lg border whitespace-pre-wrap text-base leading-relaxed"></div>
+                <textarea id="copyHelper" style="opacity: 0; position: absolute; z-index: -1;"></textarea>
+            </div>
+
+             <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
+                <strong class="font-bold">خطا!</strong>
+                <span class="block sm:inline" id="errorMessage"></span>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // DOM elements
+        const generateBtn = document.getElementById('generateBtn');
+        const khutbah1Input = document.getElementById('khutbah1');
+        const khutbah2Input = document.getElementById('khutbah2');
+        const loadingDiv = document.getElementById('loading');
+        const resultContainer = document.getElementById('resultContainer');
+        const outputDiv = document.getElementById('output');
+        const copyBtn = document.getElementById('copyBtn');
+        const copyHelper = document.getElementById('copyHelper');
+        const errorDiv = document.getElementById('error');
+        const errorMessageSpan = document.getElementById('errorMessage');
+
+        // Event listener for the generate button
+        generateBtn.addEventListener('click', handleGeneration);
+        
+        // Event listener for the copy button
+        copyBtn.addEventListener('click', copyOutputToClipboard);
+
+        async function handleGeneration() {
+            // Reset UI
+            resultContainer.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            loadingDiv.classList.add('flex'); // Show loader
+            generateBtn.disabled = true;
+
+            const khutbah1Text = khutbah1Input.value.trim();
+            const khutbah2Text = khutbah2Input.value.trim();
+
+            if (!khutbah1Text || !khutbah2Text) {
+                showError("لطفاً متن هر دو خطبه را وارد کنید.");
+                loadingDiv.classList.remove('flex');
+                loadingDiv.classList.add('hidden');
+                generateBtn.disabled = false;
+                return;
+            }
+
+            // This is the core instruction for the AI model
+            const prompt = `
+                شما یک دستیار متخصص در خلاصه‌سازی و تحلیل محتوای خطبه‌های نماز جمعه هستید. من متن دو خطبه را به شما می‌دهم. وظیفه شما این است که یک خروجی دقیقاً با فرمت JSON و طبق دستورالعمل‌های زیر تولید کنید.
+
+                **متن خطبه اول:**
+                ${khutbah1Text}
+
+                **متن خطبه دوم:**
+                ${khutbah2Text}
+
+                **دستورالعمل‌ها:**
+                1.  **impactfulTitle**: یک تیتر کلی، تاثیرگذار و جذاب در حد یک جمله که جوهره هر دو خطبه را در بر بگیرد، بسازید.
+                2.  **khutbah1.title**: برای خطبه اول یک تیتر کوتاه و دقیق بین ۲ تا ۴ کلمه بنویسید.
+                3.  **khutbah1.summary**: از خطبه اول یک خلاصه طولانی‌تر با **رویکرد مذهبی و اخلاقی** تهیه کنید. این خلاصه باید شامل حداقل ۳ بخش تیتربندی شده باشد. برای هر بخش یک تیتر (heading) و یک توضیح (explanation) بنویسید.
+                4.  **khutbah2.title**: برای خطبه دوم یک تیتر کوتاه و دقیق بین ۲ تا ۴ کلمه بنویسید.
+                5.  **khutbah2.summary**: از خطبه دوم یک خلاصه طولانی‌تر با **رویکرد سیاسی و اجتماعی** تهیه کنید. این خلاصه نیز باید شامل حداقل ۳ بخش تیتربندی شده باشد. برای هر بخش یک تیتر (heading) و یک توضیح (explanation) بنویسید.
+                6.  **overallSummary.title**: یک تیتر کلی برای خلاصه نهایی بنویسید. (مثلا: "خلاصه کلی خطبه‌ها")
+                7.  **overallSummary.text**: یک خلاصه کلی و نهایی در حد چهار خط از مهم‌ترین نکات هر دو خطبه بنویسید.
+
+                خروجی باید **فقط و فقط** یک آبجکت JSON معتبر باشد و هیچ متن اضافی دیگری نداشته باشد.
+            `;
+
+            // JSON schema definition for the expected AI response
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    "impactfulTitle": { "type": "STRING" },
+                    "khutbah1": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "title": { "type": "STRING" },
+                            "summary": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "heading": { "type": "STRING" },
+                                        "explanation": { "type": "STRING" }
+                                    },
+                                    "required": ["heading", "explanation"]
+                                }
+                            }
+                        },
+                        "required": ["title", "summary"]
+                    },
+                    "khutbah2": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "title": { "type": "STRING" },
+                            "summary": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "heading": { "type": "STRING" },
+                                        "explanation": { "type": "STRING" }
+                                    },
+                                    "required": ["heading", "explanation"]
+                                }
+                            }
+                        },
+                        "required": ["title", "summary"]
+                    },
+                    "overallSummary": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "title": { "type": "STRING" },
+                            "text": { "type": "STRING" }
+                        },
+                        "required": ["title", "text"]
+                    }
+                },
+                 "required": ["impactfulTitle", "khutbah1", "khutbah2", "overallSummary"]
+            };
+            
+            try {
+                // Constructing the API call payload
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                const payload = {
+                    contents: chatHistory,
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: schema,
+                    }
+                };
+                
+                // --- UPDATED SECTION ---
+                // The API key provided by the user is now being used.
+                // This is necessary for running the file locally.
+                const apiKey = "AIzaSyDeSJqb0SeD5P3iwQ8ZtiZHqLcL6ht5AlY"; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                // --- END OF UPDATED SECTION ---
+
+
+                // Making the API call
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    console.error("API Error Body:", errorBody);
+                    throw new Error(`خطای API: ${errorBody.error?.message || response.statusText}`);
+                }
+                
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const jsonText = result.candidates[0].content.parts[0].text;
+                    const data = JSON.parse(jsonText);
+                    displayResult(data);
+                } else {
+                     throw new Error("پاسخ دریافتی از سرور معتبر نیست. ممکن است مدل در تولید محتوا ناموفق بوده باشد.");
+                }
+
+            } catch (err) {
+                console.error("Error details:", err);
+                showError(`یک خطا رخ داد: ${err.message}`);
+            } finally {
+                // UI cleanup
+                loadingDiv.classList.remove('flex');
+                loadingDiv.classList.add('hidden');
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Function to format and display the final result
+        function displayResult(data) {
+            const intro = "به گزارش معاونت ارتباطات و رسانه دفتر امام جمعه دهستان میانکاله (زاغمرز)، حجت الاسلام والمسلمین حاج حسین انزائی در خطبه‌های این هفته از نماز جمعه، ضمن سفارش به تقوا اظهار کرد:";
+            
+            let khutbah1Content = `خطبه اول: ${data.khutbah1.title}\n`;
+            data.khutbah1.summary.forEach((item, index) => {
+                khutbah1Content += `${index + 1}.\t${item.heading}\n${item.explanation}\n\n`;
+            });
+
+            let khutbah2Content = `خطبه دوم: ${data.khutbah2.title}\n`;
+            data.khutbah2.summary.forEach((item, index) => {
+                khutbah2Content += `${index + 1}.\t${item.heading}\n${item.explanation}\n\n`;
+            });
+
+            const overallSummaryContent = `${data.overallSummary.title}\n${data.overallSummary.text}`;
+
+            const finalOutput = `بِسْمِ اللهِ الرَّحْمنِ الرَّحِیم\n\n"${data.impactfulTitle}"\n\n${intro}\n\n${khutbah1Content.trim()}\n\n---\n\n${khutbah2Content.trim()}\n\n---\n\n${overallSummaryContent.trim()}`;
+
+            outputDiv.innerText = finalOutput;
+            resultContainer.classList.remove('hidden');
+        }
+
+        // Function to show error messages
+        function showError(message) {
+            errorMessageSpan.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+        
+        // Function to copy the output text to the clipboard
+        function copyOutputToClipboard() {
+            const textToCopy = outputDiv.innerText;
+            if (!textToCopy) return;
+
+            copyHelper.value = textToCopy;
+            copyHelper.select();
+            
+            try {
+                document.execCommand('copy');
+                copyBtn.innerText = 'کپی شد!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        کپی کردن متن
+                    `;
+                }, 2000);
+            } catch (err) {
+                alert('خطا در کپی کردن متن. لطفاً به صورت دستی کپی کنید.');
+            }
+        }
+    </script>
+
+</body>
+</html>
